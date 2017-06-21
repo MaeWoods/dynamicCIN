@@ -17,6 +17,7 @@
 #include <string.h>
 #include <vector>
 #include <random>
+#include <sstream>
 
 #include <gsl/gsl_rng.h>
 
@@ -28,6 +29,13 @@ using namespace std;
 // to run the model:
 //   ./SVModel Seed=1 Model=2
 
+
+// order of parameters expected:  Npop, ngen, g_d, mu_i, p_tran, svp2, trp2, SV_min, svgradient, svtransgrad, threshold_g, SV_max, mu_i_range, gnmdou, maxchr, minchr
+int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All_ngen, vector<double>& All_g_d, vector<double>& All_mu_i, vector<double>& All_p_tran, vector<double>& All_svp2, vector<double>& All_trp2, vector<double>& All_SV_min,  
+		  vector<double>& All_svgradient, vector<double>& All_svtransgrad, vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_i_range, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr );
+
+
+
 //////////////////////////////////////////////////////////
 ///                                                    ///
 ///   MAIN                                             ///
@@ -38,7 +46,12 @@ int main (int argc, char * const argv[]) {
 
   int InternalN;
   int RpNumber;
-	
+  int Nparticles = 1;
+  
+  int Rsim = 0;
+  string RsimFile = "";
+  
+  
   ////////////////////////////////////////////////////////////
   ///Generating parameters and random seed from bash script///
   ////////////////////////////////////////////////////////////
@@ -94,19 +107,28 @@ int main (int argc, char * const argv[]) {
 	  
 	  //std::cout << "Seed " << InternalN << std::endl;					
 					
-	}
-	else if(Bunk[0]=='M'){
+	}else if(Bunk[0]=='P'){
 	  
-	  RpNumber = strtod(VariableChar,NULL);
+	  Nparticles = atoi(VariableChar);
+
+	}else if(Bunk[0]=='M'){
+	  
 	  RpNumber = atoi(VariableChar);
-	  //std::cout << "Model " << RpNumber << std::endl;
-					
+	 				
+	}else if(Bunk[0]=='R'){
+
+	  Rsim = 1;
+	  RsimFile = VariableChar;
 	}
-									
-				
       }
     }
   }
+
+  std::cout << "Read input arguments" << endl;
+  std::cout << "\tNparticles: " << Nparticles << std::endl;
+  std::cout << "\tInternalN : " << InternalN << std::endl;
+  std::cout << "\tModel     : " << RpNumber << std::endl;
+  std::cout << "\tRsim      : " << Rsim << std::endl;
 
   // initialise rng
   const gsl_rng_type * T;
@@ -123,62 +145,108 @@ int main (int argc, char * const argv[]) {
   double chrlength = 1.0e+8;
   double Curvemax = 1.0;
   //int Nparam = 14;
-  int Nparticles = 1;
+  //int Nparticles = 10;
   //int len_stat = 1000;
 
   
-  int seed = 253564389 - 2000 - 6*InternalN - 100 - 400;	     
-  srand(seed);	
+  //int seed = 253564389 - 2000 - 6*InternalN - 100 - 400;	     
+  //srand(seed);	
 
-  ////////////////////////////////////////////////////////////
-  ///   Sample from the prior                              ///
-  ////////////////////////////////////////////////////////////
-
-  int Npop = (int) 1000; //2000 + (8000-2000)*gsl_rng_uniform (r);
-  int ngen = (int) 1000; //1000 + (20000-1000)*gsl_rng_uniform (r);
-  
-  // pksv?
-  double g_d = gsl_rng_uniform (r);
-  // cell-wide mutation probability
-  double mu_i = 1.0;
-  // probability of translocation per generation
-  double p_tran = gsl_rng_uniform (r);
-  // mu_k?
-  double mu_i_range = gsl_rng_uniform (r);
-  
-  // alpha_sv: gradient of the sv probability function with length
-  double svgradient = 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
-  double svp2 = 5 + (7-5)*gsl_rng_uniform (r);
-  
-  // alpha_trans: gradient of the tranlocation probability function with length
-  double svtransgrad = 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
-  double trp2 = 5 + (7-5)*gsl_rng_uniform (r);
-  
-  // clim: the gradient of the fitness functions
-  double threshold_g = 200 + (300-200)*gsl_rng_uniform (r);
-  double maxchr =  250e6;
-  double minchr = 1e6;
-  
-  // max and minimum size of SVs
-  double SV_min = 1000;  
-  double SV_max = 0.5*250e6;
-  
-
-  // probability of genome doubling
-  double gnmdou = gsl_rng_uniform (r);
+  vector<int> All_Npop, All_ngen;
+  vector<double> All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr;
+  unsigned int nResimPars = 0;
+  if(Rsim == 1){
+    nResimPars = read_params("posterior_pars.txt", All_Npop, All_ngen, All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr);
+    std::cout << "\tRsim file " << RsimFile << " read successfully with " << nResimPars << " pars" << std::endl;
+  }
     
-  std::cout << "Sampled parameters:\n" << std::endl;
-  std::cout << "\tNpop:" << "\t" << Npop << std::endl;
-  std::cout << "\tngen:" << "\t" << ngen << std::endl;
-
-  
- 
-
   ////////////////////////////////////////////////////////////
   ///   Loop over the particles                            ///
   ////////////////////////////////////////////////////////////
-    
+  
   for (int bd = 0; bd < Nparticles; bd++) {
+    int Npop = 0;
+    int ngen = 0;      
+    double g_d = 0;
+    double mu_i = 0;       
+    double p_tran = 0;     
+    double mu_i_range = 0;  
+    double svgradient = 0; 
+    double svp2 = 0; 
+    double svtransgrad = 0; 
+    double trp2 = 0; 
+    double threshold_g = 0;
+    double maxchr = 0; 
+    double minchr = 0; 
+    double SV_min = 0; 
+    double SV_max = 0; 
+    double gnmdou = 0; 
+
+    
+    if( Rsim == 0 ){
+      ////////////////////////////////////////////////////////////
+      ///   Sample from the prior                              ///
+      ////////////////////////////////////////////////////////////
+
+      Npop = (int) 100; //2000 + (8000-2000)*gsl_rng_uniform (r);
+      ngen = (int) 100; //1000 + (20000-1000)*gsl_rng_uniform (r);
+  
+      // pksv?
+      g_d = gsl_rng_uniform (r);
+      // cell-wide mutation probability
+      mu_i = 1.0;
+      // probability of translocation per generation
+      p_tran = gsl_rng_uniform (r);
+      // mu_k?
+      mu_i_range = gsl_rng_uniform (r);
+  
+      // alpha_sv: gradient of the sv probability function with length
+      svgradient = 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
+      svp2 = 5 + (7-5)*gsl_rng_uniform (r);
+  
+      // alpha_trans: gradient of the tranlocation probability function with length
+      svtransgrad = 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
+      trp2 = 5 + (7-5)*gsl_rng_uniform (r);
+  
+      // clim: the gradient of the fitness functions
+      threshold_g = 200 + (300-200)*gsl_rng_uniform (r);
+      maxchr =  250e6;
+      minchr = 1e6;
+  
+      // max and minimum size of SVs
+      SV_min = 1000;  
+      SV_max = 0.5*250e6;
+    
+      // probability of genome doubling
+      gnmdou = gsl_rng_uniform (r);
+    
+      std::cout << "Sampled parameters:\n" << std::endl;
+      std::cout << "\tNpop:" << "\t" << Npop << std::endl;
+      std::cout << "\tngen:" << "\t" << ngen << std::endl;
+
+    }else{
+
+      int sel = gsl_rng_uniform_int(r,nResimPars);
+      cout << "random parameter: " << "\t" << sel << std::endl;
+
+      Npop =        All_Npop[sel];
+      ngen =        All_ngen[sel];
+      g_d =         All_g_d[sel];
+      mu_i =        All_mu_i[sel];
+      p_tran =      All_p_tran[sel];
+      mu_i_range =  All_mu_i_range[sel];
+      svgradient =  All_svgradient[sel];
+      svp2 =        All_svp2[sel];
+      svtransgrad = All_svtransgrad[sel];
+      trp2 =        All_trp2[sel];
+      threshold_g = All_threshold_g[sel];
+      maxchr =      All_maxchr[sel];
+      minchr =      All_minchr[sel];
+      SV_min =      All_SV_min[sel];
+      SV_max =      All_SV_max[sel];
+      gnmdou =      All_gnmdou[sel];
+      
+    }
 
     vector<vector<vector<double> > > Mprev;
     vector<vector<vector<double> > > MCprev;
@@ -935,7 +1003,11 @@ int main (int argc, char * const argv[]) {
       
     char Datins[100];
     int Dnins;
-    Dnins=sprintf(Datins,"results-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
+    if(Rsim == 0){
+      Dnins=sprintf(Datins,"results-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
+    }else{
+      Dnins=sprintf(Datins,"results-resim-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
+    }
     fstream myfileIns; 
     myfileIns.open(Datins,ios::out);
  	
@@ -960,7 +1032,8 @@ int main (int argc, char * const argv[]) {
 	    log_signed_div = log10(DivCprev[i][j][0]);
 	  }
     
-	  myfileIns << i << ", "  << j << ", " << CSize[j] << ", " << log_signed_div/CSize[j] << ", " << log_signed_div << ", " << DivCprev[i][j][0]/CSize[j] << ", " << NT[i][j][0] << ", " << NI[i][j][0] << ", " << ND[i][j][0] << ", " << rins[i][j] << ", " << rdel[i][j] << ", " << rtrans[i][j] << '\n';
+	  myfileIns << i << ", "  << j << ", " << CSize[j] << ", " << log_signed_div/CSize[j] << ", " << log_signed_div << ", " << DivCprev[i][j][0]/CSize[j] << ", "
+		    << NT[i][j][0] << ", " << NI[i][j][0] << ", " << ND[i][j][0] << ", " << rins[i][j] << ", " << rdel[i][j] << ", " << rtrans[i][j] << '\n';
 	 
 	}
       }
@@ -968,54 +1041,101 @@ int main (int argc, char * const argv[]) {
 
     }
      else{
-       std::cerr << "error: open of results file unsuccessful: " << Datins << std::endl;
+       std::cerr << "error: open of output results file unsuccessful: " << Datins << std::endl;
       return(1);
     }
 
     //////////////////////////////////////////////////////
     /////////Print out parameters       //////////////////
     //////////////////////////////////////////////////////
-    char Dat[100];
-    int Dn;
-    Dn=sprintf(Dat,"parameters-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
+    if(Rsim == 0){
+      char Dat[100];
+      int Dn;
+      Dn=sprintf(Dat,"parameters-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
 
-    fstream myfileDatParam; 
-    myfileDatParam.open(Dat,ios::out);
+      fstream myfileDatParam; 
+      myfileDatParam.open(Dat,ios::out);
 
-    if(myfileDatParam.is_open()){
+      if(myfileDatParam.is_open()){
 	
-      myfileDatParam << Npop << '\t';
-      myfileDatParam << ngen << '\t';
-      myfileDatParam << g_d << '\t';
-      myfileDatParam << mu_i << '\t';
-      myfileDatParam << p_tran << '\t';
-      myfileDatParam << svp2 << '\t';
-      myfileDatParam << trp2 << '\t';
-      myfileDatParam << SV_min << '\t';
-      myfileDatParam << svgradient << '\t';
-      myfileDatParam << svtransgrad << '\t';
-      myfileDatParam << threshold_g << '\t';
-      myfileDatParam << SV_max << '\t';
-      myfileDatParam << mu_i_range << '\t';
-      myfileDatParam << gnmdou << '\t';
-      myfileDatParam << maxchr << '\t';
-      myfileDatParam << minchr << std::endl;
+	myfileDatParam << Npop << '\t';
+	myfileDatParam << ngen << '\t';
+	myfileDatParam << g_d << '\t';
+	myfileDatParam << mu_i << '\t';
+	myfileDatParam << p_tran << '\t';
+	myfileDatParam << svp2 << '\t';
+	myfileDatParam << trp2 << '\t';
+	myfileDatParam << SV_min << '\t';
+	myfileDatParam << svgradient << '\t';
+	myfileDatParam << svtransgrad << '\t';
+	myfileDatParam << threshold_g << '\t';
+	myfileDatParam << SV_max << '\t';
+	myfileDatParam << mu_i_range << '\t';
+	myfileDatParam << gnmdou << '\t';
+	myfileDatParam << maxchr << '\t';
+	myfileDatParam << minchr << std::endl;
 	
-      myfileDatParam.close();
+	myfileDatParam.close();
+      }
+      else{
+	std::cerr << "Error: open of output parameter file unsuccessful: " << Dat << std::endl;
+	return(1);
+      }
     }
-    else{
-      std::cerr << "error: open of parameter file unsuccessful: " << Dat << std::endl;
-      return(1);
-    }
-
+      
   } // end loop over particles
   
   return(0); 
 }
 
 
+// order of parameters expected:  Npop, ngen, g_d, mu_i, p_tran, svp2, trp2, SV_min, svgradient, svtransgrad, threshold_g, SV_max, mu_i_range, gnmdou, maxchr, minchr
+int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All_ngen, vector<double>& All_g_d, vector<double>& All_mu_i, vector<double>& All_p_tran, vector<double>& All_svp2, vector<double>& All_trp2, vector<double>& All_SV_min,  
+		 vector<double>& All_svgradient, vector<double>& All_svtransgrad, vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_i_range, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr ){
 
+  ifstream infile (filename.c_str());
 
+  int counter = 0; 
+  if (infile.is_open()){
+
+    std::string line;
+    
+    while(!getline(infile,line).eof()){
+      if(line.empty()) continue;
+
+      std::vector<std::string> split;
+      std::string buf; 
+      stringstream ss(line);
+      while (ss >> buf) split.push_back(buf);
+
+      //cout << split[0] << "\t" << split[1] << endl;
+
+      All_Npop.push_back(         atoi( split[0].c_str() ) );
+      All_ngen.push_back(         atoi( split[1].c_str() ) );
+      All_g_d.push_back(          atof( split[2].c_str() ) );
+      All_mu_i.push_back(         atof( split[3].c_str() ) );
+      All_p_tran.push_back(       atof( split[4].c_str() ) );
+      All_svp2.push_back(        atof( split[5].c_str() ) );
+      All_trp2.push_back(        atof( split[6].c_str() ) );
+      All_SV_min.push_back(      atof( split[7].c_str() ) );
+      All_svgradient.push_back(  atof( split[8].c_str() ) );
+      All_svtransgrad.push_back( atof( split[9].c_str() ) );
+      All_threshold_g.push_back( atof( split[10].c_str() ) );
+      All_SV_max.push_back(       atof( split[11].c_str() ) );
+      All_mu_i_range.push_back(  atof( split[12].c_str() ) );
+      All_gnmdou.push_back(      atof( split[13].c_str() ) );
+      All_maxchr.push_back(      atof( split[14].c_str() ) );
+      All_minchr.push_back(      atof( split[15].c_str() ) );
+    
+      counter++;
+    }
+      
+  }else{
+    std::cerr << "Error: open of input parameter file unsuccessful: " <<  filename << std::endl;
+  }
+
+  return counter;
+}
 
 
 
