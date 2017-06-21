@@ -18,6 +18,7 @@
 #include <vector>
 #include <random>
 #include <sstream>
+#include <ctime>
 
 #include <gsl/gsl_rng.h>
 
@@ -35,6 +36,10 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
 		  vector<double>& All_svgradient, vector<double>& All_svtransgrad, vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_i_range, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr );
 
 
+double runiform(gsl_rng* r, double a, double b){
+  return a + (b-a)*gsl_rng_uniform (r);
+}
+
 
 //////////////////////////////////////////////////////////
 ///                                                    ///
@@ -44,8 +49,8 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
 int main (int argc, char * const argv[]) {
 
 
-  int InternalN;
-  int RpNumber;
+  int InternalN = 0;
+  int RpNumber = 2;
   int Nparticles = 1;
   
   int Rsim = 0;
@@ -136,7 +141,12 @@ int main (int argc, char * const argv[]) {
   gsl_rng_env_setup();
   T = gsl_rng_default;
   r = gsl_rng_alloc (T);
-  
+
+  if( InternalN != 0 ){
+    gsl_rng_set(r, InternalN );
+  }else{
+    gsl_rng_set (r, time(NULL) );
+  }
 
   //fixed configuration parameters
 
@@ -192,24 +202,27 @@ int main (int argc, char * const argv[]) {
       ngen = (int) 100; //1000 + (20000-1000)*gsl_rng_uniform (r);
   
       // pksv?
-      g_d = gsl_rng_uniform (r);
+      g_d = runiform(r,0,1); //gsl_rng_uniform (r);
+
       // cell-wide mutation probability
       mu_i = 1.0;
+
       // probability of translocation per generation
-      p_tran = gsl_rng_uniform (r);
+      p_tran = runiform(r,0,1); //gsl_rng_uniform (r);
+
       // mu_k?
-      mu_i_range = gsl_rng_uniform (r);
+      mu_i_range = runiform(r,0,1); // gsl_rng_uniform (r);
   
       // alpha_sv: gradient of the sv probability function with length
-      svgradient = 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
-      svp2 = 5 + (7-5)*gsl_rng_uniform (r);
+      svgradient = runiform(r,0.01,0.9);    // 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
+      svp2 = runiform(r,5,7);               // 5 + (7-5)*gsl_rng_uniform (r);
   
       // alpha_trans: gradient of the tranlocation probability function with length
-      svtransgrad = 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
-      trp2 = 5 + (7-5)*gsl_rng_uniform (r);
+      svtransgrad = runiform(r,0.01, 0.9); //0.01 + (0.9-0.01)*gsl_rng_uniform (r);
+      trp2 = runiform(r,5,7);              //5 + (7-5)*gsl_rng_uniform (r);
   
       // clim: the gradient of the fitness functions
-      threshold_g = 200 + (300-200)*gsl_rng_uniform (r);
+      threshold_g = runiform(r,200,300);   //200 + (300-200)*gsl_rng_uniform (r);
       maxchr =  250e6;
       minchr = 1e6;
   
@@ -218,7 +231,7 @@ int main (int argc, char * const argv[]) {
       SV_max = 0.5*250e6;
     
       // probability of genome doubling
-      gnmdou = gsl_rng_uniform (r);
+      gnmdou = runiform(r,0,1);
     
       std::cout << "Sampled parameters:\n" << std::endl;
       std::cout << "\tNpop:" << "\t" << Npop << std::endl;
@@ -367,18 +380,18 @@ int main (int argc, char * const argv[]) {
     }
 	
     for(int i=0; i<Npop; i++){
-    
-      GDprob[i] = gnmdou*(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+      //runiform(r,0,1);
+      GDprob[i] = gnmdou*(   runiform(r,0,1) );
       GDprobprev[i] = GDprob[i];
       GD[i] = 1;
       GDprev[i] = 1;
     
-      double division_rate = mu_i*(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+      double division_rate = mu_i*(   runiform(r,0,1) );
 	
       for(int j = 0; j < NChr; j++){
 
-	double p_ins = g_d*((   (double)rand() / ((double)(RAND_MAX)+(double)(1)) ));
-	double rintensityj = mu_i_range*(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+	double p_ins = g_d*((   runiform(r,0,1) ));
+	double rintensityj = mu_i_range*(   runiform(r,0,1) );
 	double p_del =1-p_ins;
 	svweight[i][j] = svp2;
 	  
@@ -392,7 +405,7 @@ int main (int argc, char * const argv[]) {
 	  rins[i][j] = rintensityj*p_ins;
 	
 	}
-	rtrans[i][j]= p_tran*((   (double)rand() / ((double)(RAND_MAX)+(double)(1)) ));
+	rtrans[i][j]= p_tran*((   runiform(r,0,1) ));
       }
       
     }
@@ -475,14 +488,14 @@ int main (int argc, char * const argv[]) {
 
       for(int i=0; i<Npop; i++){
 	//std::cout << "GDprev[i]: " << GDprev[i] << std::endl;
-	double r_gd = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+	double r_gd = runiform(r,0,1);
 			
 	//
 	if(r_gd<GDprob[i]){
 			
 	  //std::cout << "oh no" << std::endl;
 	  //sample a genome in the current ploidy
-	  int sample_chr = ceil(GDprev[i]*(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) ))-1;
+	  int sample_chr = ceil(GDprev[i]*runiform(r,0,1))-1;
 				
 	  vector<vector<double> > MCins;
 	  vector<vector<double> > Mins;
@@ -550,12 +563,12 @@ int main (int argc, char * const argv[]) {
 	      double p_d = rdelprev[i][k]*proportional_prob;		
 
 
-	      double r_i = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
-	      double r_d = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+	      double r_i = runiform(r,0,1);
+	      double r_d = runiform(r,0,1);
 			
 	      if(r_i < p_i){
 				
-		double qq = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) ); 
+		double qq = (   runiform(r,0,1) ); 
 		double sz = SV_min - log(qq)*SV_max; 
 		DivCprev[i][k][0] += sz;
 		Cprev[i][k][g_d] = Cprev[i][k][g_d] + sz;
@@ -567,7 +580,7 @@ int main (int argc, char * const argv[]) {
 				
 	      if(r_d < p_d){
 
-		double qq = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) ); 
+		double qq = (   runiform(r,0,1) ); 
 		double sz = SV_min - log(qq)*SV_max; 
 		DivCprev[i][k][0] -= sz;
 		Cprev[i][k][g_d] = Cprev[i][k][g_d] - sz;
@@ -636,7 +649,7 @@ int main (int argc, char * const argv[]) {
 	    //translocate between C1 and C2//
 	    double proportional_prob = Mprev[i][j][k]*Curvemax/(1+exp(-1*svtransgrad*(log10(MCprev[i][j][k])-trp2)));
 	    double p1t = proportional_prob*rtransprev[i][k];
-	    double p1tp = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+	    double p1tp = runiform(r,0,1);
 			
 			
 	    if( p1tp < p1t ){
@@ -659,7 +672,7 @@ int main (int argc, char * const argv[]) {
 			
 		      double proportional_probj = Mprev[i][j1][k1]*Curvemax/(1+exp(-1*svtransgrad*(log10(MCprev[i][j1][k1])-trp2)));
 		      double p1tj = proportional_probj*rtransprev[i][k1];
-		      double p1tpj = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+		      double p1tpj = runiform(r,0,1);
 						
 		      if( p1tpj < p1tj ){
 			
@@ -668,7 +681,7 @@ int main (int argc, char * const argv[]) {
 			
 			for(int ka=0; ka<NChr; ka++){
 
-			  double p = lowB + (1-lowB)*(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+			  double p = lowB + (1-lowB)*runiform(r,0,1);
 			  double a1 = Mprev[i][j][ka];
 			  double b1 = Mprev[i][j1][ka];
 			  Mprev[i][j][ka] = p*(a1+b1);
@@ -759,8 +772,8 @@ int main (int argc, char * const argv[]) {
 	    double p1 = 1 - (Curvemax/(1+exp(-1*threshold_g*((CMixprev[i][j + g_d*NChr][0])-minchr))));
 	    double p2 = (Curvemax/(1+exp(-1*threshold_g*((CMixprev[i][j + g_d*NChr][0])-maxchr))));
 	      
-	    double r1 =(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
-	    double r2 =(   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+	    double r1 =(   runiform(r,0,1) );
+	    double r2 =(   runiform(r,0,1) );
 	    
 	    if(r1<p1){
 			
@@ -861,7 +874,7 @@ int main (int argc, char * const argv[]) {
 	}
 	else{
 
-	  double rnew = (   (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+	  double rnew = runiform(r,0,1);
 	  int position = floor(rnew*n_remaining);
 	
 	  if(GD[i]!=GDprev[sample_vec[position]]){
@@ -1084,6 +1097,8 @@ int main (int argc, char * const argv[]) {
     }
       
   } // end loop over particles
+
+  gsl_rng_free (r);
   
   return(0); 
 }
@@ -1133,7 +1148,7 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
   }else{
     std::cerr << "Error: open of input parameter file unsuccessful: " <<  filename << std::endl;
   }
-
+  
   return counter;
 }
 
