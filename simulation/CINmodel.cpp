@@ -55,7 +55,8 @@ int main (int argc, char * const argv[]) {
   
   int Rsim = 0;
   string RsimFile = "";
-  
+
+  string jobid = "";
   
   ////////////////////////////////////////////////////////////
   ///Generating parameters and random seed from bash script///
@@ -124,6 +125,10 @@ int main (int argc, char * const argv[]) {
 
 	  Rsim = 1;
 	  RsimFile = VariableChar;
+
+	}else if(Bunk[0]=='J'){
+
+	  jobid = VariableChar;
 	}
       }
     }
@@ -175,6 +180,9 @@ int main (int argc, char * const argv[]) {
   ////////////////////////////////////////////////////////////
   
   for (int bd = 0; bd < Nparticles; bd++) {
+
+    if( bd % 10 == 0) std::cout << "particle : " << bd << std::endl;
+    
     int Npop = 0;
     int ngen = 0;      
     double g_d = 0;
@@ -233,9 +241,9 @@ int main (int argc, char * const argv[]) {
       // probability of genome doubling
       gnmdou = runiform(r,0,1);
     
-      std::cout << "Sampled parameters:\n" << std::endl;
-      std::cout << "\tNpop:" << "\t" << Npop << std::endl;
-      std::cout << "\tngen:" << "\t" << ngen << std::endl;
+      //std::cout << "Sampled parameters:\n" << std::endl;
+      //std::cout << "\tNpop:" << "\t" << Npop << std::endl;
+      //std::cout << "\tngen:" << "\t" << ngen << std::endl;
 
     }else{
 
@@ -1017,9 +1025,9 @@ int main (int argc, char * const argv[]) {
     char Datins[100];
     int Dnins;
     if(Rsim == 0){
-      Dnins=sprintf(Datins,"results-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
+      Dnins=sprintf(Datins,"results-S%d-P%d-M%d-J%s.dat",InternalN,bd,RpNumber,jobid.c_str());
     }else{
-      Dnins=sprintf(Datins,"results-resim-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
+      Dnins=sprintf(Datins,"results-resim-S%d-P%d-M%d-J%s.dat",InternalN,bd,RpNumber,jobid.c_str());
     }
     fstream myfileIns; 
     myfileIns.open(Datins,ios::out);
@@ -1064,8 +1072,9 @@ int main (int argc, char * const argv[]) {
     if(Rsim == 0){
       char Dat[100];
       int Dn;
-      Dn=sprintf(Dat,"parameters-S%d-P%d-M%d.dat",InternalN,bd,RpNumber);
 
+      Dn=sprintf(Dat,"parameters-S%d-P%d-M%d-J%s.dat",InternalN,bd,RpNumber,jobid.c_str());
+   
       fstream myfileDatParam; 
       myfileDatParam.open(Dat,ios::out);
 
