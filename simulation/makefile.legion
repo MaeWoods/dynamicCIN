@@ -1,0 +1,6 @@
+dummy = $(shell module gsl/1.16/gnu-4.9.2)
+dummy = $(shell openblas/0.2.14/gnu-4.9.2)
+
+
+CINmodel: CINmodel.cpp
+	g++ CINmodel.cpp -o CINmodel -lgslcblas -lgsl -std=gnu++11
