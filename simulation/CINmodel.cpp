@@ -171,7 +171,7 @@ int main (int argc, char * const argv[]) {
   vector<double> All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr;
   unsigned int nResimPars = 0;
   if(Rsim == 1){
-    nResimPars = read_params("posterior_pars.txt", All_Npop, All_ngen, All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr);
+    nResimPars = read_params(RsimFile, All_Npop, All_ngen, All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr);
     std::cout << "\tRsim file " << RsimFile << " read successfully with " << nResimPars << " pars" << std::endl;
   }
     
@@ -248,7 +248,7 @@ int main (int argc, char * const argv[]) {
     }else{
 
       int sel = gsl_rng_uniform_int(r,nResimPars);
-      cout << "random parameter: " << "\t" << sel << std::endl;
+      //cout << "random parameter: " << "\t" << sel << std::endl;
 
       Npop =        All_Npop[sel];
       ngen =        All_ngen[sel];
