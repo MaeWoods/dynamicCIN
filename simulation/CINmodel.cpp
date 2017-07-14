@@ -1,3 +1,27 @@
+// 
+// Skip to content
+// Features
+// Business
+// Explore
+// Marketplace
+// Pricing
+// This repository
+// Sign in or Sign up
+// 
+// 5
+// 0
+// 
+//     0
+// 
+// ucl-cssb/dynamicCIN
+// Code
+// Issues 0
+// Pull requests 0
+// Projects 0
+// dynamicCIN/simulation/CINmodel.cpp
+// 16a93b1 6 days ago
+// christopher.barnes@ucl.ac.uk Added code for performing ABC analysis on the model output
+// 1178 lines (800 sloc) 29.5 KB
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                              ///
 /// Evolutionary model ///
@@ -31,9 +55,9 @@ using namespace std;
 //   ./SVModel Seed=1 Model=2
 
 
-// order of parameters expected:  Npop, ngen, g_d, mu_i, p_tran, svp2, trp2, SV_min, svgradient, svtransgrad, threshold_g, SV_max, mu_i_range, gnmdou, maxchr, minchr
-int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All_ngen, vector<double>& All_g_d, vector<double>& All_mu_i, vector<double>& All_p_tran, vector<double>& All_svp2, vector<double>& All_trp2, vector<double>& All_SV_min,  
-		  vector<double>& All_svgradient, vector<double>& All_svtransgrad, vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_i_range, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr );
+// order of parameters expected:  Npop, ngen, g_d, mu_i, p_tran, trp2, svtransgrad, threshold_g, SV_max, mu_k, gnmdou, maxchr, minchr
+int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All_ngen, vector<double>& All_mu_b, vector<double>& All_p_tran,  
+		  vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_ki, vector<double>& All_mu_kd, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr );
 
 
 double runiform(gsl_rng* r, double a, double b){
@@ -49,7 +73,7 @@ double runiform(gsl_rng* r, double a, double b){
 int main (int argc, char * const argv[]) {
 
 
-  int InternalN = 0;
+  int set_seed = 0;
   int RpNumber = 2;
   int Nparticles = 1;
   
@@ -70,9 +94,7 @@ int main (int argc, char * const argv[]) {
 			
       if (argv[CommandLineCounter][StringPosition]=='=') {
 
-	EqualPosition = StringPosition;
-				
-	//std::cout << "= is at: " << StringPosition << std::endl;  				
+	EqualPosition = StringPosition;				
 				
       }
 			
@@ -109,9 +131,9 @@ int main (int argc, char * const argv[]) {
 	if(Bunk[0]=='S'){
 	  
 	  t1 = strtod(VariableChar,NULL);
-	  InternalN = int(t1);
+	  set_seed = int(t1);
 	  
-	  //std::cout << "Seed " << InternalN << std::endl;					
+	  //std::cout << "Seed " << set_seed << std::endl;					
 					
 	}else if(Bunk[0]=='P'){
 	  
@@ -123,7 +145,7 @@ int main (int argc, char * const argv[]) {
 	 				
 	}else if(Bunk[0]=='R'){
 
-	  Rsim = 1;
+	  Rsim = 0;
 	  RsimFile = VariableChar;
 
 	}else if(Bunk[0]=='J'){
@@ -135,10 +157,10 @@ int main (int argc, char * const argv[]) {
   }
 
   std::cout << "Read input arguments" << endl;
-  std::cout << "\tNparticles: " << Nparticles << std::endl;
-  std::cout << "\tInternalN : " << InternalN << std::endl;
-  std::cout << "\tModel     : " << RpNumber << std::endl;
-  std::cout << "\tRsim      : " << Rsim << std::endl;
+  std::cout << "\tNparticles : " << Nparticles << std::endl;
+  std::cout << "\tset_seed  : " << set_seed << std::endl;
+  std::cout << "\tModel      : " << RpNumber << std::endl;
+  std::cout << "\tRsim       : " << Rsim << std::endl;
 
   // initialise rng
   const gsl_rng_type * T;
@@ -147,8 +169,8 @@ int main (int argc, char * const argv[]) {
   T = gsl_rng_default;
   r = gsl_rng_alloc (T);
 
-  if( InternalN != 0 ){
-    gsl_rng_set(r, InternalN );
+  if( set_seed != 0 ){
+    gsl_rng_set(r, set_seed );
   }else{
     gsl_rng_set (r, time(NULL) );
   }
@@ -159,25 +181,55 @@ int main (int argc, char * const argv[]) {
   double lowB = 0.05;
   double chrlength = 1.0e+8;
   double Curvemax = 1.0;
-  //int Nparam = 14;
-  //int Nparticles = 10;
-  //int len_stat = 1000;
-
-  
-  //int seed = 253564389 - 2000 - 6*InternalN - 100 - 400;	     
-  //srand(seed);	
-
+cout << "NChr: " << NChr << std::endl;
   vector<int> All_Npop, All_ngen;
-  vector<double> All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr;
+  vector<double> All_mu_b, All_p_tran, All_threshold_g,  All_SV_max, All_mu_ki, All_mu_kd, All_gnmdou, All_maxchr, All_minchr;
   unsigned int nResimPars = 0;
   if(Rsim == 1){
-    nResimPars = read_params(RsimFile, All_Npop, All_ngen, All_g_d, All_mu_i, All_p_tran, All_svp2, All_trp2, All_SV_min, All_svgradient, All_svtransgrad, All_threshold_g,  All_SV_max, All_mu_i_range, All_gnmdou, All_maxchr, All_minchr);
+    nResimPars = read_params(RsimFile, All_Npop, All_ngen, All_mu_b, All_p_tran, All_threshold_g,  All_SV_max, All_mu_ki, All_mu_kd, All_gnmdou, All_maxchr, All_minchr);
     std::cout << "\tRsim file " << RsimFile << " read successfully with " << nResimPars << " pars" << std::endl;
   }
     
   ////////////////////////////////////////////////////////////
-  ///   Loop over the particles                            ///
+  ///   Containers                                         ///
   ////////////////////////////////////////////////////////////
+  
+  	vector<vector<vector<double> > > Mprev;
+	vector<vector<vector<double> > > MCprev;
+	vector<vector<vector<double> > > Cprev;
+	vector<vector<vector<double> > > DivCprev;
+	vector<vector<vector<double> > > CMixprev;	
+
+	vector<vector<vector<double> > > NTprev;
+	vector<vector<vector<double> > > NIprev;
+	vector<vector<vector<double> > > NDprev;
+
+	vector<vector<double> > rdelprev;
+	vector<vector<double> > rinsprev;
+	vector<vector<double> > rtransprev;
+	vector<int> GDprev;
+	vector<double> GDprobprev;
+	vector<double> CSize(3);
+
+	vector<vector<vector<double> > > M;
+	vector<vector<vector<double> > > MC;
+	vector<vector<vector<double> > > C;
+	vector<vector<vector<double> > > DivC;
+	vector<vector<vector<double> > > CMix;
+
+	vector<vector<vector<double> > > NT;
+	vector<vector<vector<double> > > NI;
+	vector<vector<vector<double> > > ND;
+
+	vector<vector<double> > rdel;
+	vector<vector<double> > rins;
+	vector<vector<double> > rtrans;
+	vector<int> GD;
+	vector<double> GDprob;
+	
+   ////////////////////////////////////////////////////////////
+   ///   Loop over the particles                            ///
+   ////////////////////////////////////////////////////////////
   
   for (int bd = 0; bd < Nparticles; bd++) {
 
@@ -185,124 +237,68 @@ int main (int argc, char * const argv[]) {
     
     int Npop = 0;
     int ngen = 0;      
-    double g_d = 0;
-    double mu_i = 0;       
     double p_tran = 0;     
-    double mu_i_range = 0;  
-    double svgradient = 0; 
-    double svp2 = 0; 
-    double svtransgrad = 0; 
-    double trp2 = 0; 
+    double mu_ki = 0;
+    double mu_kd = 0;
+    double mu_b = 0;  
     double threshold_g = 0;
     double maxchr = 0; 
     double minchr = 0; 
-    double SV_min = 0; 
     double SV_max = 0; 
     double gnmdou = 0; 
 
-    
+    cout << "Rsim: " << Rsim << std::endl;
     if( Rsim == 0 ){
       ////////////////////////////////////////////////////////////
       ///   Sample from the prior                              ///
       ////////////////////////////////////////////////////////////
-
-      Npop = (int) 100; //2000 + (8000-2000)*gsl_rng_uniform (r);
-      ngen = (int) 100; //1000 + (20000-1000)*gsl_rng_uniform (r);
+	cout << "begin of sampling: " << std::endl;
+      Npop = (int) 6000 + (3000)*gsl_rng_uniform (r);
+      ngen = (int) 10 + (500)*gsl_rng_uniform (r);
   
-      // pksv?
-      g_d = runiform(r,0,1); //gsl_rng_uniform (r);
-
-      // cell-wide mutation probability
-      mu_i = 1.0;
+      // baseline mutation rate
+      mu_b = 1.0e-10 + (1.0e-10)*pow(10,6*gsl_rng_uniform (r));
 
       // probability of translocation per generation
-      p_tran = runiform(r,0,1); //gsl_rng_uniform (r);
+      p_tran = runiform(r,0,2); //gsl_rng_uniform (r);
 
-      // mu_k?
-      mu_i_range = runiform(r,0,1); // gsl_rng_uniform (r);
-  
-      // alpha_sv: gradient of the sv probability function with length
-      svgradient = runiform(r,0.01,0.9);    // 0.01 + (0.9-0.01)*gsl_rng_uniform (r);
-      svp2 = runiform(r,5,7);               // 5 + (7-5)*gsl_rng_uniform (r);
-  
-      // alpha_trans: gradient of the tranlocation probability function with length
-      svtransgrad = runiform(r,0.01, 0.9); //0.01 + (0.9-0.01)*gsl_rng_uniform (r);
-      trp2 = runiform(r,5,7);              //5 + (7-5)*gsl_rng_uniform (r);
+      // mutation rate of the chromosome for insertions
+      mu_ki = runiform(r,0,2); // gsl_rng_uniform (r);
+      
+      // mutation rate of the chromosome for deletions
+      mu_kd = runiform(r,0,2); // gsl_rng_uniform (r);
   
       // clim: the gradient of the fitness functions
       threshold_g = runiform(r,200,300);   //200 + (300-200)*gsl_rng_uniform (r);
-      maxchr =  250e6;
-      minchr = 1e6;
+      maxchr =  1.0e+8 + pow(10,8*gsl_rng_uniform (r));
+      minchr = 1.0e+6 + 2*pow(10,7*gsl_rng_uniform (r));
   
       // max and minimum size of SVs
-      SV_min = 1000;  
-      SV_max = 0.5*250e6;
+      SV_max = 1000 + pow(10,8*gsl_rng_uniform (r));
     
       // probability of genome doubling
-      gnmdou = runiform(r,0,1);
+      gnmdou = runiform(r,0,0.05);
     
-      //std::cout << "Sampled parameters:\n" << std::endl;
-      //std::cout << "\tNpop:" << "\t" << Npop << std::endl;
-      //std::cout << "\tngen:" << "\t" << ngen << std::endl;
-
-    }else{
+	
+    }
+    else{
 
       int sel = gsl_rng_uniform_int(r,nResimPars);
       //cout << "random parameter: " << "\t" << sel << std::endl;
 
       Npop =        All_Npop[sel];
       ngen =        All_ngen[sel];
-      g_d =         All_g_d[sel];
-      mu_i =        All_mu_i[sel];
+      mu_b =        All_mu_b[sel];
       p_tran =      All_p_tran[sel];
-      mu_i_range =  All_mu_i_range[sel];
-      svgradient =  All_svgradient[sel];
-      svp2 =        All_svp2[sel];
-      svtransgrad = All_svtransgrad[sel];
-      trp2 =        All_trp2[sel];
+      mu_ki =  All_mu_ki[sel];
+      mu_kd =  All_mu_kd[sel];
       threshold_g = All_threshold_g[sel];
       maxchr =      All_maxchr[sel];
       minchr =      All_minchr[sel];
-      SV_min =      All_SV_min[sel];
       SV_max =      All_SV_max[sel];
       gnmdou =      All_gnmdou[sel];
       
     }
-
-    vector<vector<vector<double> > > Mprev;
-    vector<vector<vector<double> > > MCprev;
-    vector<vector<vector<double> > > Cprev;
-    vector<vector<vector<double> > > DivCprev;
-    vector<vector<vector<double> > > CMixprev;	
-	
-    vector<vector<vector<double> > > NTprev;
-    vector<vector<vector<double> > > NIprev;
-    vector<vector<vector<double> > > NDprev;
-	
-    vector<vector<double> > rdelprev;
-    vector<vector<double> > rinsprev;
-    vector<vector<double> > rtransprev;
-    vector<vector<double> > svweightprev;
-    vector<int> GDprev;
-    vector<double> GDprobprev;
-    vector<double> CSize(3);
-
-    vector<vector<vector<double> > > M;
-    vector<vector<vector<double> > > MC;
-    vector<vector<vector<double> > > C;
-    vector<vector<vector<double> > > DivC;
-    vector<vector<vector<double> > > CMix;
-
-    vector<vector<vector<double> > > NT;
-    vector<vector<vector<double> > > NI;
-    vector<vector<vector<double> > > ND;
-
-    vector<vector<double> > rdel;
-    vector<vector<double> > rins;
-    vector<vector<double> > rtrans;
-    vector<vector<double> > svweight;
-    vector<int> GD;
-    vector<double> GDprob;
   
     GD.resize(Npop);
     GDprob.resize(Npop);
@@ -320,9 +316,7 @@ int main (int argc, char * const argv[]) {
 	
     rdel.resize(Npop);
     rins.resize(Npop);
-    rtrans.resize(Npop);
-    svweight.resize(Npop);
-    
+    rtrans.resize(Npop);    
 
     //Initialize
     for (int i = 0; i < Npop; i++) {
@@ -359,8 +353,7 @@ int main (int argc, char * const argv[]) {
 	  CSize[j]=chrlength/(j + j*1.5);
 	}
 	DivC[i][j][0]=0;
-    
-	NT[i][j][0]=0;
+    NT[i][j][0]=0;
 	NI[i][j][0]=0;
 	ND[i][j][0]=0;
     
@@ -380,7 +373,6 @@ int main (int argc, char * const argv[]) {
 	  }
 	}
       }
-      svweight[i].resize(NChr);
       rdel[i].resize(NChr);
       rins[i].resize(NChr);
       rtrans[i].resize(NChr);
@@ -393,15 +385,11 @@ int main (int argc, char * const argv[]) {
       GDprobprev[i] = GDprob[i];
       GD[i] = 1;
       GDprev[i] = 1;
-    
-      double division_rate = mu_i*(   runiform(r,0,1) );
 	
       for(int j = 0; j < NChr; j++){
 
-	double p_ins = g_d*((   runiform(r,0,1) ));
-	double rintensityj = mu_i_range*(   runiform(r,0,1) );
-	double p_del =1-p_ins;
-	svweight[i][j] = svp2;
+	double p_ins = mu_ki*(   runiform(r,0,1) );
+	double p_del = mu_kd*(   runiform(r,0,1) );
 	  
 	if(j==1){
 	  rdel[i][j] = 0;
@@ -409,11 +397,11 @@ int main (int argc, char * const argv[]) {
 	}
 	else{
   
-	  rdel[i][j] = rintensityj*p_del;
-	  rins[i][j] = rintensityj*p_ins;
+	  rdel[i][j] = mu_b*p_del;
+	  rins[i][j] = mu_b*p_ins;
 	
 	}
-	rtrans[i][j]= p_tran*((   runiform(r,0,1) ));
+	rtrans[i][j]= mu_b*p_tran*((   runiform(r,0,1) ));
       }
       
     }
@@ -431,7 +419,6 @@ int main (int argc, char * const argv[]) {
     rdelprev.resize(Npop);
     rinsprev.resize(Npop);
     rtransprev.resize(Npop);
-    svweightprev.resize(Npop);
 	
     for (int i = 0; i < Npop; i++) {
 
@@ -443,7 +430,6 @@ int main (int argc, char * const argv[]) {
       rdelprev[i].resize(NChr);
       rinsprev[i].resize(NChr);
       rtransprev[i].resize(NChr);
-      svweightprev[i].resize(NChr);
 	
       NTprev[i].resize(NChr);
       NIprev[i].resize(NChr);
@@ -454,7 +440,6 @@ int main (int argc, char * const argv[]) {
 	rdelprev[i][j] = rdel[i][j];
 	rinsprev[i][j] = rins[i][j];
 	rtransprev[i][j] = rtrans[i][j];
-	svweightprev[i][j] = svweight[i][j];
 	
 	Cprev[i][j].resize(1);
 	CMixprev[i][j].resize(1);
@@ -487,21 +472,20 @@ int main (int argc, char * const argv[]) {
     //std::cout << "Looping over generations" << std::endl;
 
     for(int gg=1; gg<ngen; gg++){
-      
+      //std::cout << "gg: " << gg << std::endl;
       //////////////////////////////////////////////////////
       /////////Mutate: insertions and deletions/////////////
       //////////////////////////////////////////////////////
 	
-      if(gg % 100 == 0) std::cout << "particle/ngen : " << bd << " / " << gg << std::endl;
+    if(gg % 100 == 0) std::cout << "particle/ngen : " << bd << " / " << gg << std::endl;
 
-      for(int i=0; i<Npop; i++){
+    for(int i=0; i<Npop; i++){
 	//std::cout << "GDprev[i]: " << GDprev[i] << std::endl;
 	double r_gd = runiform(r,0,1);
 			
 	//
 	if(r_gd<GDprob[i]){
 			
-	  //std::cout << "oh no" << std::endl;
 	  //sample a genome in the current ploidy
 	  int sample_chr = ceil(GDprev[i]*runiform(r,0,1))-1;
 				
@@ -555,51 +539,64 @@ int main (int argc, char * const argv[]) {
 	}
 	  
       }
-
+      
+   
+		
+		
       for(int i=0; i<Npop; i++){
+      
+      
 		
 	for(int g_d=0; g_d<GDprev[i]; g_d++){
 		
 	  for(int j=0; j<NChr; j++){
 			
 	    for(int k=0; k<NChr; k++){
+	    
+	      std::default_random_engine generatorins;
+  		  std::poisson_distribution<int> distributionins(MCprev[i][j + g_d*NChr][k]*rinsprev[i][k]);
+  		  std::default_random_engine generatordels;
+  		  std::poisson_distribution<int> distributiondel(MCprev[i][j + g_d*NChr][k]*rdelprev[i][k]);
 				
-	      double proportional_prob = ceil(Mprev[i][j + g_d*NChr][k])*Curvemax/(1+exp(-1*svgradient*(log10((MCprev[i][j + g_d*NChr][k]))-svp2)));
-
-				
-	      double p_i = rinsprev[i][k]*proportional_prob;
-	      double p_d = rdelprev[i][k]*proportional_prob;		
-
-
-	      double r_i = runiform(r,0,1);
-	      double r_d = runiform(r,0,1);
-			
-	      if(r_i < p_i){
+	      int N_i = distributionins(generatorins);
+	      int N_d = distributiondel(generatordels);	
+	      			
+	      for(int tot=0; tot<N_i; tot++){
 				
 		double qq = (   runiform(r,0,1) ); 
-		double sz = SV_min - log(qq)*SV_max; 
+		double sz = - log(qq)*SV_max; 
+		if(sz<1000){
+		}
+		else{
 		DivCprev[i][k][0] += sz;
 		Cprev[i][k][g_d] = Cprev[i][k][g_d] + sz;
 		MCprev[i][j + g_d*NChr][k] = MCprev[i][j + g_d*NChr][k] + sz;
 		NIprev[i][k][0] = NIprev[i][k][0] + 1;
-
+		}
 		  
 	      }
 				
-	      if(r_d < p_d){
+	      for(int tot=0; tot<N_d; tot++){
 
 		double qq = (   runiform(r,0,1) ); 
-		double sz = SV_min - log(qq)*SV_max; 
+		double sz = - log(qq)*SV_max; 
+		if((MCprev[i][j + g_d*NChr][k]>=0)&&(sz>MCprev[i][j + g_d*NChr][k])){
+		
+		sz = MCprev[i][j + g_d*NChr][k];
+		
+		}
+		if(sz<1000){
+		}
+		else{
 		DivCprev[i][k][0] -= sz;
 		Cprev[i][k][g_d] = Cprev[i][k][g_d] - sz;
 		MCprev[i][j + g_d*NChr][k] = MCprev[i][j + g_d*NChr][k] - sz;
 		NDprev[i][k][0] = NDprev[i][k][0] + 1;
-
-	      }
+		}
 		
-	    }
-			
-			
+	      }	      
+		
+	    }	
 	    
 	  }
 		
@@ -621,8 +618,21 @@ int main (int argc, char * const argv[]) {
 	    double sum_j = 0;
 			
 	    for(int k=0; k<NChr; k++){
+	    
+	    double cprev_size = 0;
+	    
+	    for(int gd1=0; gd1<GDprev[i]; gd1++){
+	    cprev_size += Cprev[i][k][gd1];
+	    
+	    }
 	      
-	      Mprev[i][j + g_d*NChr][k] = MCprev[i][j + g_d*NChr][k]/Cprev[i][k][g_d];
+	      if(cprev_size==0){
+	      Mprev[i][j + g_d*NChr][k] = 0;
+	      }
+	      else{
+	      Mprev[i][j + g_d*NChr][k] = MCprev[i][j + g_d*NChr][k]/cprev_size;
+	      
+	      }
 				
 	      sum_j = Mprev[i][j + g_d*NChr][k]*Cprev[i][k][g_d] + sum_j;
 							
@@ -653,14 +663,12 @@ int main (int argc, char * const argv[]) {
 	  }
 			
 	  for(int k=0; k<NChr; k++){
+	  //translocate between C1 and C2//
+		  std::default_random_engine generatortrans;
+  		  std::poisson_distribution<int> distributiontrans(MCprev[i][j][k]*rtransprev[i][k]);
+		  int N_t = distributiontrans(generatortrans);
 			
-	    //translocate between C1 and C2//
-	    double proportional_prob = Mprev[i][j][k]*Curvemax/(1+exp(-1*svtransgrad*(log10(MCprev[i][j][k])-trp2)));
-	    double p1t = proportional_prob*rtransprev[i][k];
-	    double p1tp = runiform(r,0,1);
-			
-			
-	    if( p1tp < p1t ){
+	    if( N_t > 0 ){
 			
 	      ///Mutate: second chomsome///
 	      int j1tick = 0;
@@ -677,12 +685,12 @@ int main (int argc, char * const argv[]) {
 		  for(int k1=0; k1<NChr; k1++){
 					
 		    if(k!=k1){
-			
-		      double proportional_probj = Mprev[i][j1][k1]*Curvemax/(1+exp(-1*svtransgrad*(log10(MCprev[i][j1][k1])-trp2)));
-		      double p1tj = proportional_probj*rtransprev[i][k1];
-		      double p1tpj = runiform(r,0,1);
+		      
+		      std::default_random_engine generatortrans1;
+  		  	  std::poisson_distribution<int> distributiontrans1(MCprev[i][j1][k1]*rtransprev[i][k1]);
+		  	  int N_t1 = distributiontrans1(generatortrans1);
 						
-		      if( p1tpj < p1tj ){
+		      if( N_t1 > 0 ){
 			
 			double sum_j0 = 0;
 			double sum_j1 = 0;
@@ -756,7 +764,6 @@ int main (int argc, char * const argv[]) {
 	
       }
 
-
       //////////////////////////////////////////////////////
       /////////Selection////////////////////////////////////
       //////////////////////////////////////////////////////
@@ -826,8 +833,10 @@ int main (int argc, char * const argv[]) {
       //std::cout << "\tResample" << std::endl;
       for (int i = 0; i < Npop; i++) {
 	int newgd = 0;
-	
+
 	if(keep[i]==1){
+	
+
 	
 	  if(GD[i]!=GDprev[i]){
 
@@ -861,7 +870,6 @@ int main (int argc, char * const argv[]) {
 	      rdel[i][j] = rdelprev[i][j];
 	      rins[i][j] = rinsprev[i][j];
 	      rtrans[i][j] = rtransprev[i][j];
-	      svweight[i][j] = svweightprev[i][j];
     
 	      NT[i][j][0] = NTprev[i][j][0];
 	      NI[i][j][0] = NIprev[i][j][0];
@@ -887,6 +895,9 @@ int main (int argc, char * const argv[]) {
 	
 	  if(GD[i]!=GDprev[sample_vec[position]]){
 	
+		MC[i].clear();
+		M[i].clear();
+		CMix[i].clear();
 	    MC[i].resize(MCprev[sample_vec[position]].size());
 	    M[i].resize(Mprev[sample_vec[position]].size());
 	    CMix[i].resize(CMixprev[sample_vec[position]].size());
@@ -900,8 +911,8 @@ int main (int argc, char * const argv[]) {
 	    }
 	
 	    for(int j = 0; j< NChr; j++){
-	
-				
+			
+		  C[i][j].clear();	
 	      C[i][j].resize(Cprev[sample_vec[position]][j].size());
 			
 	    }
@@ -920,7 +931,6 @@ int main (int argc, char * const argv[]) {
 	      rdel[i][j] = rdelprev[sample_vec[position]][j];
 	      rins[i][j] = rinsprev[sample_vec[position]][j];
 	      rtrans[i][j] = rtransprev[sample_vec[position]][j];
-	      svweight[i][j] = svweightprev[sample_vec[position]][j];
     
 	      NT[i][j][0] = NTprev[sample_vec[position]][j][0];
 	      NI[i][j][0] = NIprev[sample_vec[position]][j][0];
@@ -1000,7 +1010,6 @@ int main (int argc, char * const argv[]) {
 	    rdelprev[i][j] = rdel[i][j];
 	    rinsprev[i][j] = rins[i][j];
 	    rtransprev[i][j] = rtrans[i][j];
-	    svweightprev[i][j] = svweight[i][j]; 
     
 	    NTprev[i][j][0] = NT[i][j][0];
 	    NIprev[i][j][0] = NI[i][j][0];
@@ -1025,9 +1034,9 @@ int main (int argc, char * const argv[]) {
     char Datins[100];
     int Dnins;
     if(Rsim == 0){
-      Dnins=sprintf(Datins,"results-S%d-P%d-M%d-J%s.dat",InternalN,bd,RpNumber,jobid.c_str());
+      Dnins=sprintf(Datins,"results-S%d-P%d-M%d-J%s.dat",set_seed,bd,RpNumber,jobid.c_str());
     }else{
-      Dnins=sprintf(Datins,"results-resim-S%d-P%d-M%d-J%s.dat",InternalN,bd,RpNumber,jobid.c_str());
+      Dnins=sprintf(Datins,"results-resim-S%d-P%d-M%d-J%s.dat",set_seed,bd,RpNumber,jobid.c_str());
     }
     fstream myfileIns; 
     myfileIns.open(Datins,ios::out);
@@ -1056,6 +1065,10 @@ int main (int argc, char * const argv[]) {
 	  myfileIns << i << ", "  << j << ", " << CSize[j] << ", " << log_signed_div/CSize[j] << ", " << log_signed_div << ", " << DivCprev[i][j][0]/CSize[j] << ", "
 		    << NT[i][j][0] << ", " << NI[i][j][0] << ", " << ND[i][j][0] << ", " << rins[i][j] << ", " << rdel[i][j] << ", " << rtrans[i][j] << '\n';
 	 
+	 if(DivCprev[i][j][0]/CSize[j]<-2){
+	 std::cout << "ERROR!!!  gd: " << GDprev[i] << " i: " << i << " j: " << j << " how much " << DivCprev[i][j][0]/CSize[j] << std::endl;
+	 }
+	 
 	}
       }
       myfileIns.close();
@@ -1073,7 +1086,7 @@ int main (int argc, char * const argv[]) {
       char Dat[100];
       int Dn;
 
-      Dn=sprintf(Dat,"parameters-S%d-P%d-M%d-J%s.dat",InternalN,bd,RpNumber,jobid.c_str());
+      Dn=sprintf(Dat,"parameters-S%d-P%d-M%d-J%s.dat",set_seed,bd,RpNumber,jobid.c_str());
    
       fstream myfileDatParam; 
       myfileDatParam.open(Dat,ios::out);
@@ -1082,17 +1095,12 @@ int main (int argc, char * const argv[]) {
 	
 	myfileDatParam << Npop << '\t';
 	myfileDatParam << ngen << '\t';
-	myfileDatParam << g_d << '\t';
-	myfileDatParam << mu_i << '\t';
+	myfileDatParam << mu_b << '\t';
 	myfileDatParam << p_tran << '\t';
-	myfileDatParam << svp2 << '\t';
-	myfileDatParam << trp2 << '\t';
-	myfileDatParam << SV_min << '\t';
-	myfileDatParam << svgradient << '\t';
-	myfileDatParam << svtransgrad << '\t';
 	myfileDatParam << threshold_g << '\t';
 	myfileDatParam << SV_max << '\t';
-	myfileDatParam << mu_i_range << '\t';
+	myfileDatParam << mu_ki << '\t';
+	myfileDatParam << mu_kd << '\t';
 	myfileDatParam << gnmdou << '\t';
 	myfileDatParam << maxchr << '\t';
 	myfileDatParam << minchr << std::endl;
@@ -1104,6 +1112,44 @@ int main (int argc, char * const argv[]) {
 	return(1);
       }
     }
+    
+    
+    ///////////////////////////
+    // Clear containers ///////
+    ///////////////////////////
+    
+    Mprev.clear();
+	MCprev.clear();
+	Cprev.clear();
+	DivCprev.clear();
+	CMixprev.clear();	
+
+	NTprev.clear();
+	NIprev.clear();
+	NDprev.clear();
+
+	rdelprev.clear();
+	rinsprev.clear();
+	rtransprev.clear();
+	GDprev.clear();
+	GDprobprev.clear();
+	CSize.clear();
+
+	M.clear();
+	MC.clear();
+	C.clear();
+	DivC.clear();
+	CMix.clear();
+
+	NT.clear();
+	NI.clear();
+	ND.clear();
+
+	rdel.clear();
+	rins.clear();
+	rtrans.clear();
+	GD.clear();
+	GDprob.clear();
       
   } // end loop over particles
 
@@ -1113,9 +1159,9 @@ int main (int argc, char * const argv[]) {
 }
 
 
-// order of parameters expected:  Npop, ngen, g_d, mu_i, p_tran, svp2, trp2, SV_min, svgradient, svtransgrad, threshold_g, SV_max, mu_i_range, gnmdou, maxchr, minchr
-int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All_ngen, vector<double>& All_g_d, vector<double>& All_mu_i, vector<double>& All_p_tran, vector<double>& All_svp2, vector<double>& All_trp2, vector<double>& All_SV_min,  
-		 vector<double>& All_svgradient, vector<double>& All_svtransgrad, vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_i_range, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr ){
+// order of parameters expected:  Npop, ngen, g_d, mu_i, p_tran, svp2, trp2, SV_min, svgradient, svtransgrad, threshold_g, SV_max, mu_k, gnmdou, maxchr, minchr
+int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All_ngen, vector<double>& All_mu_b, vector<double>& All_p_tran,  
+		 vector<double>& All_threshold_g, vector<double>& All_SV_max, vector<double>& All_mu_ki, vector<double>& All_mu_kd, vector<double>& All_gnmdou, vector<double>& All_maxchr, vector<double>& All_minchr ){
 
   ifstream infile (filename.c_str());
 
@@ -1136,20 +1182,15 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
 
       All_Npop.push_back(         atoi( split[0].c_str() ) );
       All_ngen.push_back(         atoi( split[1].c_str() ) );
-      All_g_d.push_back(          atof( split[2].c_str() ) );
-      All_mu_i.push_back(         atof( split[3].c_str() ) );
-      All_p_tran.push_back(       atof( split[4].c_str() ) );
-      All_svp2.push_back(        atof( split[5].c_str() ) );
-      All_trp2.push_back(        atof( split[6].c_str() ) );
-      All_SV_min.push_back(      atof( split[7].c_str() ) );
-      All_svgradient.push_back(  atof( split[8].c_str() ) );
-      All_svtransgrad.push_back( atof( split[9].c_str() ) );
-      All_threshold_g.push_back( atof( split[10].c_str() ) );
-      All_SV_max.push_back(       atof( split[11].c_str() ) );
-      All_mu_i_range.push_back(  atof( split[12].c_str() ) );
-      All_gnmdou.push_back(      atof( split[13].c_str() ) );
-      All_maxchr.push_back(      atof( split[14].c_str() ) );
-      All_minchr.push_back(      atof( split[15].c_str() ) );
+      All_mu_b.push_back(         atof( split[2].c_str() ) );
+      All_p_tran.push_back(       atof( split[3].c_str() ) );
+      All_threshold_g.push_back( atof( split[4].c_str() ) );
+      All_SV_max.push_back(       atof( split[5].c_str() ) );
+      All_mu_ki.push_back(  atof( split[6].c_str() ) );
+      All_mu_kd.push_back(  atof( split[7].c_str() ) );
+      All_gnmdou.push_back(      atof( split[8].c_str() ) );
+      All_maxchr.push_back(      atof( split[9].c_str() ) );
+      All_minchr.push_back(      atof( split[10].c_str() ) );
     
       counter++;
     }
@@ -1174,4 +1215,8 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
 
 
 
+
+  //  Contact GitHub API Training Shop Blog About 
+
+ //   © 2017 GitHub, Inc. Terms Privacy Security Status Help 
 
