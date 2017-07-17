@@ -61,7 +61,12 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
 
 
 double runiform(gsl_rng* r, double a, double b){
-  return a + (b-a)*gsl_rng_uniform (r);
+  double myrandom = a + (b-a)*gsl_rng_uniform (r);
+ 	
+ 	while(myrandom==0){
+ 	myrandom = a + (b-a)*gsl_rng_uniform (r);
+ 	}
+  return myrandom;
 }
 
 
