@@ -1,27 +1,3 @@
-// 
-// Skip to content
-// Features
-// Business
-// Explore
-// Marketplace
-// Pricing
-// This repository
-// Sign in or Sign up
-// 
-// 5
-// 0
-// 
-//     0
-// 
-// ucl-cssb/dynamicCIN
-// Code
-// Issues 0
-// Pull requests 0
-// Projects 0
-// dynamicCIN/simulation/CINmodel.cpp
-// 16a93b1 6 days ago
-// christopher.barnes@ucl.ac.uk Added code for performing ABC analysis on the model output
-// 1178 lines (800 sloc) 29.5 KB
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                                                                                                              ///
 /// Evolutionary model ///
@@ -1206,22 +1182,4 @@ int read_params( const string& filename, vector<int>& All_Npop, vector<int>& All
   
   return counter;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  //  Contact GitHub API Training Shop Blog About 
-
- //   © 2017 GitHub, Inc. Terms Privacy Security Status Help 
 
